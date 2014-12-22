@@ -1,0 +1,146 @@
+configurations { jaxb }
+
+configurations.all{
+  resolutionStrategy {
+    cacheDynamicVersionsFor 0, "seconds"
+    cacheChangingModulesFor 0, "seconds"
+  }
+}
+
+// Maven repo config
+buildscript {
+  repositories {
+    maven { url "http://repo.spring.io/libs-release" }
+    mavenLocal()
+    mavenCentral()
+  }
+  dependencies { classpath("org.springframework.boot:spring-boot-gradle-plugin:1.2.0.RELEASE") }
+}
+// added to prevent code quality scanning of generated jaxb classes/source
+def excludePattern = '\\mas\\wsdl\\'
+def excludePatternAntStyle = '**\\' + excludePattern + '*'
+
+apply plugin: 'java'
+
+apply plugin: 'findbugs'
+project.findbugs.ignoreFailures = false
+tasks.withType(FindBugs) {
+  classes = classes.filter {
+    !it.path.contains(excludePattern)
+  }
+  reports {
+    xml.enabled = false
+    html.enabled = true
+  }
+}
+
+apply plugin: 'eclipse'
+eclipse {
+  project {
+    // Apply project natures
+    natures = ['org.eclipse.jdt.core.javanature', 'org.springsource.ide.eclipse.gradle.core.nature',]
+  }
+}
+
+apply plugin: 'spring-boot'
+repositories {
+  mavenLocal()
+  mavenCentral()
+  maven { url 'http://repo.spring.io/libs-release' }
+}
+
+
+// Generate generate web service client code
+task genJaxb {
+  ext.sourcesDir = "${buildDir}/generated-sources/jaxb"
+  ext.classesDir = "${buildDir}/classes/jaxb"
+  ext.schema = "${getProjectProperty('wsdl.uri')}"
+
+  outputs.dir classesDir
+
+  doLast() {
+    project.ant {
+      includeAntRuntime="true"
+      taskdef name: "xjc", classname: "com.sun.tools.xjc.XJCTask",
+      classpath: configurations.jaxb.asPath
+      mkdir(dir: sourcesDir)
+      mkdir(dir: classesDir)
+
+      xjc(destdir: sourcesDir, schema: schema,
+      package: "mas.wsdl", binding:"customBinding.xml") {
+        arg(value: "-wsdl")
+        produces(dir: sourcesDir, includes: "**/*.java")
+
+      }
+
+      javac(destdir: classesDir, source: 1.7, target: 1.7, debug: true,
+      debugLevel: "lines,vars,source",
+      classpath: configurations.jaxb.asPath) {
+        src(path: sourcesDir)
+        include(name: "**/*.java")
+        include(name: "*.java")
+      }
+
+      copy(todir: classesDir) {
+        fileset(dir: sourcesDir, erroronmissingdir: false) { exclude(name: "**/*.java") }
+      }
+    }
+  }
+}
+
+installApp{
+  doLast {
+    // embed jre
+    copy{
+      from rootProject.file("jre7_x64")
+      into ("${buildDir}\\install\\"+"${project.name}\\bin\\jre7_x64\\")
+    }
+    //embed application.properties
+    copy{
+      from rootProject.file("application.properties")
+      into ("${buildDir}\\install\\"+"${project.name}\\bin\\")
+    }
+  }
+}
+
+// Project dependancies
+dependencies {
+  compile('org.springframework.boot:spring-boot-starter')
+  compile ('org.springframework.boot:spring-boot-starter-logging')
+  compile('org.springframework.ws:spring-ws-core')
+  compile('org.springframework:spring-web')
+  compile('org.springframework:spring-core') { exclude group: 'commons-logging' }
+  compile(files(genJaxb.classesDir).builtBy(genJaxb))
+  compile('joda-time:joda-time:2.3')
+  compile('org.jasypt:jasypt-hibernate3:1.9.0')
+  compile('org.apache.commons:commons-lang3:3.3.2')
+  compile('commons-configuration:commons-configuration:1.10')
+  compile('commons-io:commons-io:2.4')
+  compile('org.apache.commons:commons-compress:1.9')
+  compile('org.apache.httpcomponents:httpclient:4.3.6')
+  compile('org.apache.commons:commons-email:1.3.3')
+  compile('org.springframework:spring-context-support:4.1.2.RELEASE')
+  compile('org.apache.commons:commons-collections4:4.0')
+
+  jaxb "org.apache.axis2:axis2-jaxbri:1.6.2"
+}
+
+// Add generated sources to main java sourceset
+sourceSets.main.java.srcDirs += 'build/generated-sources/jaxb'
+
+// Create client jar
+jar { from genJaxb.classesDir }
+
+// Include gradle runtime in distribution
+task wrapper(type: Wrapper) { gradleVersion = '2.2.1' }
+
+// Use this method to get properties from gradle.properties file
+def String getProjectProperty(String propertyName)
+{
+  String property = "null"
+  if (hasProperty(propertyName))
+  {
+    property = this.properties[propertyName]
+  }
+  return property
+}

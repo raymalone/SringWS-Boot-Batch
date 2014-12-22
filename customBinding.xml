@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jxb:bindings xmlns:jxb="http://java.sun.com/xml/ns/jaxb"
+	xmlns:xsd="http://www.w3.org/2001/XMLSchema" jxb:version="2.1"
+	targetNamespace="http://www.elster-eis.com/ImportExport" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/"
+	xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/"
+	xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:tns="http://www.elster-eis.com/ImportExport"
+	xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+	xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/"
+	jxb:extensionBindingPrefixes="xjc">
+	<jxb:bindings schemaLocation="http://masapprd/axis2/services/MAS?wsdl">
+		<jxb:bindings multiple="true"
+			node="(/wsdl:definitions/wsdl:types/xsd:schema/xsd:complexType/xsd:attribute[@name='TOUSchedule'])[1]">
+			<jxb:property name="touSchedule1" />
+		</jxb:bindings>
+	</jxb:bindings>
+</jxb:bindings>
